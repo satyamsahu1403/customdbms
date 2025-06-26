@@ -149,11 +149,11 @@ void createDatabase(char arr[],int c)
 	f=fopen(fname,"w");
 	if(f==NULL)
 	{
-		printf("\ndatabase cannot be created");
+		printf("database cannot be created\n");
 	}
 	else
 	{
-		printf("\ndatabase created successfully");
+		printf("database created successfully\n");
 	}
 	fclose(f);
 }
@@ -194,18 +194,14 @@ void createTable(char arr[],int x)
 	char txt[4]=".txt";
 	char fname[4+x];
 	strcpy(fname,createFileName(arr));
-	for(p=0;p<sizeof(fname);p++)
-	{
-		printf("%c",fname[p]);
-	}
 	f=fopen(fname,"w");
 	if(f==NULL)
 	{
-		printf("\ntable cannot be created");
+		printf("table cannot be created\n");
 	}
 	else
 	{
-		printf("\ntable created successfully");
+		printf("table created successfully\n");
 	}
 	fclose(f);
 }
@@ -230,7 +226,7 @@ void insertTable(char arr[],char arr1[],char arr2[],int x)
 			{
 				if(!isdigit(dt[z][p]))
 				{
-					printf("\ndatatype mismatch");
+					printf("datatype mismatch\n");
 					return;
 				}
 				p++;
@@ -241,18 +237,55 @@ void insertTable(char arr[],char arr1[],char arr2[],int x)
 	f=fopen(fname,"a");
 	fprintf(f,arr1);
 	fprintf(f,"\n");
-	printf("\ndata inserted successfully");
+	printf("data inserted successfully\n");
 	fclose(f);
+}
+void deleteTable(char fn[],char arr[],FILE *f)
+{
+	FILE *f1;
+	char tn[20];
+	char rf[30];
+	char fname[20];
+	strcpy(fname,createFileName(arr));
+	f1=fopen(fn,"w");
+	if(f==NULL)
+	{
+		printf("error\n");
+		return;
+	}
+	while(fgets(rf,50,f))
+	{
+		strcpy(tn,getBeforeBracket(rf));
+		if(strcmp(arr,tn)==0)
+		{
+			continue;
+		}
+		fprintf(f1,rf);
+		fprintf(f1,"\n");
+	}
+	if(remove(fname)==0)
+	{
+		printf("table deleted successfully\n");
+	}
+	else
+	{
+		printf("error while deleting table\n");
+	}
+	fclose(f1);
 }
 void useDatabase(char arr[],int y)
 {
 	char arr1[50];
 	char arr2[3]="-c";
 	char arr3[3]="-i";
-	char arr4[3]="-d";
+	char trr[4]="-dt";
+	char trr1[4]="-dc";
+	char trr2[4]="-dr";
+	char exit[3]="-e";
 	char arr5[5];
 	char arr6[50];
 	char arr7[50];
+	char arr71[20];
 	char ar[20];
 	char ar1[50];
 	char ar2[20];
@@ -267,7 +300,10 @@ void useDatabase(char arr[],int y)
 	char fname[4+y];
 	arr2[2]='\0';
 	arr3[2]='\0';
-	arr4[2]='\0';
+	trr[3]='\0';
+	trr1[3]='\0';
+	trr2[3]='\0';
+	exit[2]='\0';
 	while(arr[i]!='\0')
 	{
 		fname[i]=arr[i];
@@ -282,7 +318,7 @@ void useDatabase(char arr[],int y)
 	f=fopen(fname,"a+");
 	if(f==NULL)
 	{
-		printf("\ndatabase cannot be found");
+		printf("database cannot be found\n");
 	}
 	else
 	{
@@ -336,15 +372,28 @@ void useDatabase(char arr[],int y)
 			}
 			else
 			{
-				printf("\ntable not found");
+				printf("table not found\n");
 			}
+		}
+		else if(strcmp(arr5,trr)==0)
+		{
+			strcpy(arr71,getSecondString(arr1));
+			deleteTable(fname,arr71,f);
+		}
+		else if(strcmp(arr5,exit)==0)
+		{
+			return;
 		}
 		else
 		{
-			printf("invalid syntax");
+			printf("invalid syntax\n");
 		}
 	}
 	fclose(f);
+	if(strcmp(arr5,exit)!=0)
+	{
+		useDatabase(arr,y);
+	}
 }
 int main()
 {
@@ -353,12 +402,14 @@ int main()
 	char arr3[4]="udb";
 	char arr4[4];
 	char arr5[30];
+	char exit[3]="-e";
 	int c=0,c1=0;
 	char fname[20];
 	char txt[4]=".txt";
 	FILE *f;
 	arr2[3]='\0';
 	arr3[3]='\0';
+	exit[2]='\0';
 	getString(arr1,sizeof(arr1));
 	strcpy(arr4,getFirstString(arr1));
 	if(strcmp(arr2,arr4)==0)
@@ -381,7 +432,7 @@ int main()
 		f=fopen(fname,"r");
 		if(f==NULL)
 		{
-			printf("\ndatabase does not exits");
+			printf("database does not exits\n");
 		}
 		else
 		{
@@ -389,8 +440,16 @@ int main()
 			useDatabase(arr5,c1);
 		}
 	}
+	else if(strcmp(arr4,exit)==0)
+	{
+		return 0;
+	}
 	else
 	{
 		printf("\nerror");
+	}
+	if(strcmp(arr4,exit)!=0)
+	{
+		main();
 	}
 }
