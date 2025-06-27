@@ -3,6 +3,7 @@
 #include<stdlib.h>
 #include<conio.h>
 #include<ctype.h>
+#include<stdbool.h>
 void getString(char arr[],int n)
 {
 	printf(">");
@@ -95,6 +96,43 @@ void getDataTypes(char arr[],char dt[10][30])
 		i++;
 	}
 }
+void getColumnName(char *colDef, char *result) {
+    int i = 0, j = 0;
+    while (colDef[i] != ' ' && colDef[i] != '\0') i++; 
+    if (colDef[i] == ' ') i++; 
+    while (colDef[i] != '\0') {
+        result[j++] = colDef[i++];
+    }
+    result[j] = '\0';
+}
+
+void getTableStructure(char arr[],char dt[10][30])
+{
+	char temp[20];
+	int i=0,j=0,z=0,n=0;
+	while(arr[n]!=0)
+	{
+		n++;
+	}
+	n++;
+	while(i<n)
+	{
+		if(arr[i]!=',')
+		{
+			temp[j]=arr[i];
+		}
+	    if(arr[i]==',' || arr[i]=='\0')
+		{
+			temp[j]='\0';
+			strcpy(dt[z],temp);
+			z++;
+			memset(temp, 0, sizeof(temp));
+    		j=-1;
+		}
+		j++;
+		i++;
+	}
+}
 void getInputData(char arr[],char dt[10][30])
 {
 	char temp[20];
@@ -140,6 +178,31 @@ int countInputData(char arr[])
 	}
 	c++;
 	return c;
+}
+void updateLineInFile(const char *filename, const char *target, const char *replacement) {
+    FILE *src = fopen(filename, "r");
+    FILE *tmp = fopen("temp.txt", "w");
+    char buffer[256];
+
+    if (!src || !tmp) {
+        printf("File error\n");
+        return;
+    }
+
+    while (fgets(buffer, sizeof(buffer), src)) {
+        buffer[strcspn(buffer, "\n")] = '\0';
+
+        if (strcmp(buffer, target) == 0) {
+            fprintf(tmp, "%s\n", replacement);
+        } else {
+            fprintf(tmp, "%s\n", buffer);
+        }
+    }
+    fclose(src);
+    fclose(tmp);
+    remove(filename);
+    rename("temp.txt", filename);
+    printf("Line updated successfully\n");
 }
 void createDatabase(char arr[],int c)
 {
@@ -187,6 +250,118 @@ char* getInsideBracket(char arr[])
 	arr1[i]='\0';
 	return arr1;
 }
+void removeStringRow(char arr[][30], int *rows, int rowToRemove) {
+    if (rowToRemove < 0 || rowToRemove >= *rows) {
+        printf("Invalid row index\n");
+        return;
+    }
+
+    for (int i = rowToRemove; i < (*rows) - 1; i++) {
+        strcpy(arr[i], arr[i + 1]);
+    }
+
+    (*rows)--;
+}
+
+
+int deleteColumn(char *dbName, char *tableName, char *columnToDelete) {
+    char schemaLine[256], newSchemaLine[256];
+    char schemaFile[30], tableFile[30];
+    char tempSchemaFile[] = "temp_schema.txt", tempTableFile[] = "temp_table.txt";
+    char fields[10][30], columnName[30];
+    int numCols = 0, deleteIndex = -1;
+
+    strcpy(schemaFile, createFileName(dbName));
+    strcpy(tableFile, createFileName(tableName));
+
+    FILE *schemaIn = fopen(schemaFile, "r");
+    FILE *schemaOut = fopen(tempSchemaFile, "w");
+    FILE *tableIn = fopen(tableFile, "r");
+    FILE *tableOut = fopen(tempTableFile, "w");
+
+    if (!schemaIn || !schemaOut || !tableIn || !tableOut) {
+        printf("Error opening files for column deletion.\n");
+        return -1;
+    }
+
+    bool found = false;
+
+    while (fgets(schemaLine, sizeof(schemaLine), schemaIn)) {
+        char schemaTable[30];
+        strcpy(schemaTable, getBeforeBracket(schemaLine));
+
+        if (strcmp(schemaTable, tableName) == 0) {
+            found = true;
+            char *schemaContent = getInsideBracket(schemaLine);
+            getTableStructure(schemaContent, fields);
+
+            while (fields[numCols][0] != '\0') numCols++;
+
+            for (int i = 0; i < numCols; i++) {
+                getColumnName(fields[i], columnName);
+                if (strcmp(columnName, columnToDelete) == 0) {
+                    deleteIndex = i;
+                    break;
+                }
+            }
+
+            if (deleteIndex == -1) {
+                printf("Column '%s' not found in table '%s'.\n", columnToDelete, tableName);
+                fclose(schemaIn); fclose(schemaOut); fclose(tableIn); fclose(tableOut);
+                remove(tempSchemaFile); remove(tempTableFile);
+                return -1;
+            }
+
+            for (int i = deleteIndex; i < numCols - 1; i++) {
+                strcpy(fields[i], fields[i + 1]);
+            }
+            numCols--;
+
+            fprintf(schemaOut, "%s(", tableName);
+            for (int i = 0; i < numCols; i++) {
+                fprintf(schemaOut, "%s", fields[i]);
+                if (i < numCols - 1) fprintf(schemaOut, ",");
+            }
+            fprintf(schemaOut, ")\n");
+        } else {
+            fputs(schemaLine, schemaOut);
+        }
+    }
+
+    if (found && deleteIndex != -1) {
+        char row[256], values[10][30];
+        while (fgets(row, sizeof(row), tableIn)) {
+            getInputData(row, values);
+            for (int i = deleteIndex; i < numCols; i++) {
+                strcpy(values[i], values[i + 1]);
+            }
+
+            fprintf(tableOut, "%s", values[0]);
+            for (int i = 1; i < numCols; i++) {
+                fprintf(tableOut, ",%s", values[i]);
+            }
+            fprintf(tableOut, "\n");
+        }
+
+        fclose(schemaIn); fclose(schemaOut);
+        fclose(tableIn); fclose(tableOut);
+
+        remove(schemaFile);
+        rename(tempSchemaFile, schemaFile);
+        remove(tableFile);
+        rename(tempTableFile, tableFile);
+
+        printf("✅ Column '%s' deleted successfully from table '%s'.\n", columnToDelete, tableName);
+        return 0;
+    }
+
+    fclose(schemaIn); fclose(schemaOut); fclose(tableIn); fclose(tableOut);
+    printf("❌ Failed to update table. No files were modified.\n");
+    remove(tempSchemaFile); remove(tempTableFile);
+    return -1;
+}
+
+
 void createTable(char arr[],int x)
 {
 	FILE *f;
@@ -240,39 +415,51 @@ void insertTable(char arr[],char arr1[],char arr2[],int x)
 	printf("data inserted successfully\n");
 	fclose(f);
 }
-void deleteTable(char fn[],char arr[],FILE *f)
-{
-	FILE *f1;
-	char tn[20];
-	char rf[30];
-	char fname[20];
-	strcpy(fname,createFileName(arr));
-	f1=fopen(fn,"w");
-	if(f==NULL)
-	{
-		printf("error\n");
-		return;
-	}
-	while(fgets(rf,50,f))
-	{
-		strcpy(tn,getBeforeBracket(rf));
-		if(strcmp(arr,tn)==0)
-		{
-			continue;
-		}
-		fprintf(f1,rf);
-		fprintf(f1,"\n");
-	}
-	if(remove(fname)==0)
-	{
-		printf("table deleted successfully\n");
-	}
-	else
-	{
-		printf("error while deleting table\n");
-	}
-	fclose(f1);
+void deleteTable(char fn[], char arr[]) {
+    FILE *f1;
+    char tempFile[] = "temp.txt";
+    char tn[20];
+    char rf[100];
+	FILE *f = fopen(fn, "r");
+    if (f == NULL) {
+        printf("Error opening original file for reading\n");
+        return;
+    }
+    f1 = fopen(tempFile, "w");
+    if (f1 == NULL || f == NULL) {
+        printf("Error opening files\n");
+        return;
+    }
+
+    while (fgets(rf, sizeof(rf), f)) {
+        strcpy(tn, getBeforeBracket(rf));
+        if (strcmp(arr, tn) != 0) {
+            fputs(rf, f1);
+        }
+    }
+
+    fclose(f);
+    fclose(f1);
+
+    if (remove(fn) != 0) {
+        printf("Error removing original file\n");
+        return;
+    }
+
+    if (rename(tempFile, fn) != 0) {
+        printf("Error renaming temp file\n");
+        return;
+    }
+
+    char tableFile[30];
+    strcpy(tableFile, createFileName(arr));
+    if (remove(tableFile) == 0) {
+        printf("Table deleted successfully\n");
+    } else {
+        printf("Error while deleting table data file\n");
+    }
 }
+
 void useDatabase(char arr[],int y)
 {
 	char arr1[50];
@@ -294,6 +481,9 @@ void useDatabase(char arr[],int y)
 	char rf[50];
 	char tn[20];
 	char st[30];
+	char st1[40];
+	char st2[20];
+	char st3[20];
 	char txt[4]=".txt";
 	FILE *f;
 	int i=0,j,z,c=0,c1=0,p,check=0;
@@ -378,11 +568,19 @@ void useDatabase(char arr[],int y)
 		else if(strcmp(arr5,trr)==0)
 		{
 			strcpy(arr71,getSecondString(arr1));
-			deleteTable(fname,arr71,f);
+			fclose(f);
+			deleteTable(fname,arr71);
 		}
 		else if(strcmp(arr5,exit)==0)
 		{
 			return;
+		}
+		else if(strcmp(arr5,trr1)==0)
+		{
+			strcpy(st1,getSecondString(arr1));
+			strcpy(st2,getInsideBracket(st1));
+			strcpy(st3,getBeforeBracket(st1));
+			deleteColumn(arr,st3,st2);
 		}
 		else
 		{
